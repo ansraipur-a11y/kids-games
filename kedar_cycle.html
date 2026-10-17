@@ -1,0 +1,80 @@
+<!DOCTYPE html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>केदार की गियर वाली साइकिल</title>
+<style>
+body{margin:0;background:#14202b;color:#e6f2ff;font-family:'Noto Sans Devanagari',sans-serif;text-align:center}
+h1{margin:8px 0 2px;font-size:23px}#msg{min-height:26px;font-size:17px;margin:4px 8px}#hud{font-size:15px}
+canvas{border:4px solid #3b5b7a;border-radius:8px;max-width:96vw;touch-action:none}
+#pad button{font-size:26px;width:58px;height:50px;margin:3px;border-radius:10px;border:0;background:#3d7dbf;color:#fff}
+button.r{font-size:18px;padding:8px 16px;border-radius:8px;border:0;background:#4f8a3e;color:#fff;margin:6px}
+</style></head><body>
+<h1>केदार की गियर वाली साइकिल 🚲</h1>
+<div id="hud"></div><div id="msg"></div>
+<canvas id="c" width="660" height="480"></canvas>
+<div id="pad"><button data-d="0,-1">⬆️</button><br><button data-d="-1,0">⬅️</button><button data-d="0,1">⬇️</button><button data-d="1,0">➡️</button></div>
+<button class="r" onclick="start()">नया खेल</button>
+<script>
+const C=document.getElementById('c'),X=C.getContext('2d'),T=30,W=22,H=16;
+const M=[
+"######################",
+"#.........##.........#",
+"#.........##.........#",
+"#.........##.........#",
+"#....................#",
+"#.........##.........#",
+"#.........##.........#",
+"####.######..######.##",
+"#.........#..........#",
+"#.........#..........#",
+"#....................#",
+"#.........#..........#",
+"#.........#..........#",
+"#.........#..........#",
+"#.........#..........#",
+"######################"];
+const zones=[["🏠 घर",0,0,11,7,'#f3e1c0'],["🏪 मनोज चाचा की दुकान",11,0,11,7,'#e3f0d0'],["🛕 महादेव घाट",0,8,10,8,'#cfe3f2'],["🚦 सुंदर नगर चौक",11,8,11,8,'#ececec']];
+const spots=[[2,2,"🛏️","पलंग के नीचे"],[6,1,"🚪","दरवाज़े के पीछे"],[8,5,"🪜","सीढ़ी के नीचे"],[3,5,"🏍️","पापा की बाइक के पास"],
+[13,2,"🍬","टॉफ़ी के डिब्बों के पीछे"],[17,1,"🧃","कोल्ड ड्रिंक के फ़्रिज के पास"],[20,4,"📦","बोरियों के पीछे"],[15,5,"⚖️","तराज़ू के पास"],
+[2,9,"🔔","घंटे के पास"],[7,10,"🌊","सीढ़ियों के किनारे"],[3,13,"🛶","नाव के पीछे"],[8,14,"🌳","पीपल के पेड़ के पीछे"],
+[13,9,"🚥","सिग्नल के खंभे के पास"],[19,9,"🛺","ऑटो के पीछे"],[15,12,"🍵","चाय की टपरी के पास"],[20,14,"🗿","मूर्ति के पीछे"]];
+let P,Pihu,Bs,cyc,checked,over,timer,t0,stun;
+const wall=(x,y)=>M[y][x]=='#';const spotAt=(x,y)=>spots.find(s=>s[0]==x&&s[1]==y);const free=(x,y)=>!wall(x,y)&&!spotAt(x,y);
+function rndFree(){let x,y;do{x=1+Math.random()*20|0;y=1+Math.random()*14|0}while(!free(x,y));return{x,y}}
+function far(q,d){return Math.abs(q.x-P.x)+Math.abs(q.y-P.y)>=d}
+function start(){P={x:5,y:3};stun=0;
+ const mk=()=>{let q;do{q=rndFree()}while(!far(q,7));return q};
+ Pihu=Object.assign(mk(),{n:'पीहू',e:'😈👧',c:'#c2255c'});
+ Bs=[Object.assign(mk(),{n:'कुबेर',e:'👦🍟',c:'#2b8a3e',sp:.35,t:['कुबेर: "केदार, चिप्स खाओगे? 🍟 बैठो ना!" केदार ललचा गया!','कुबेर ने चिप्स का पैकेट खोला... कुर्र-कुर्र! 😋 केदार रुक गया!','कुबेर: "साइकिल छोड़ो, मसाला चिप्स लो!" 🍟']}),
+ Object.assign(mk(),{n:'दादा',e:'👴',c:'#5f3dc4',sp:.25,t:['दादा: "केदार, ज़रा मेरा अख़बार ढूँढ के लाओ!" 📰','दादा: "बेटा, पहले मेरा चश्मा कहाँ है, बताओ!" 👓','दादा: "आओ, तुम्हें पुराने ज़माने की कहानी सुनाऊँ..." 📖']}),
+ Object.assign(mk(),{n:'दादी',e:'👵',c:'#e8590c',sp:.25,t:['दादी: "केदार, पहले ये लड्डू खाओ!" 🍬','दादी: "धूप में कहाँ भाग रहे हो? पानी पी के जाओ!" 💧','दादी: "आओ, सिर में तेल लगा दूँ!" 🫙']})];
+ cyc=spots[Math.random()*spots.length|0];checked=new Set();over=false;t0=Date.now();
+ msg("केदार, अपनी गियर वाली साइकिल ढूँढो! 😈 पीहू से बचना, वह पकड़ लेगी तो साइकिल कहीं और छुपा देगी!");
+ clearInterval(timer);timer=setInterval(tick,480);draw()}
+function msg(s){document.getElementById('msg').textContent=s}
+const near=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y)<=1;
+function walk(o,chase){const ds=[[1,0],[-1,0],[0,1],[0,-1]].filter(d=>free(o.x+d[0],o.y+d[1])&&!(o.x+d[0]==P.x&&o.y+d[1]==P.y));if(!ds.length)return;
+ let d=ds[Math.random()*ds.length|0];if(Math.random()<chase){ds.sort((a,b)=>(Math.abs(o.x+a[0]-P.x)+Math.abs(o.y+a[1]-P.y))-(Math.abs(o.x+b[0]-P.x)+Math.abs(o.y+b[1]-P.y)));d=ds[0]}o.x+=d[0];o.y+=d[1]}
+function tick(){if(over)return;
+ walk(Pihu,.5);Bs.forEach(b=>walk(b,b.sp));if(stun>0)stun--;
+ if(near(P,Pihu)){const left=spots.filter(s=>!checked.has(s)&&s!==cyc);if(left.length)cyc=left[Math.random()*left.length|0];
+  P={x:5,y:3};stun=2;msg(['😈 पीहू: "हा हा! मैंने साइकिल फिर से छुपा दी!" केदार वापस घर पहुँचा।','😈 पीहू ने केदार को पकड़ लिया और साइकिल नई जगह छुपा दी!','😈 पीहू: "पकड़ लिया! अब ढूँढो फिर से!"'][Math.random()*3|0]);
+  let q;do{q=rndFree()}while(!far(q,8));Pihu.x=q.x;Pihu.y=q.y}
+ else if(stun==0){const b=Bs.find(b=>near(P,b));if(b){stun=5;msg(b.t[Math.random()*3|0])}}
+ draw()}
+function move(dx,dy){if(over||stun>0)return;const nx=P.x+dx,ny=P.y+dy;const s=spotAt(nx,ny);
+ if(s){checked.add(s);if(s===cyc){over=true;clearInterval(timer);msg(`🎉 मिल गई! गियर वाली साइकिल ${s[3]} थी! केदार ने ${((Date.now()-t0)/1000)|0} सेकंड में ढूँढ ली। 🚲💨`)}else msg(`केदार ने ${s[3]} देखा... साइकिल यहाँ नहीं है!`);draw();return}
+ if(wall(nx,ny)||[Pihu,...Bs].some(b=>b.x==nx&&b.y==ny))return;P.x=nx;P.y=ny;
+ if(Math.abs(P.x-cyc[0])+Math.abs(P.y-cyc[1])<=3)msg('कहीं पास से साइकिल की घंटी सुनाई दे रही है... 🔔 ट्रिंग ट्रिंग!');draw()}
+function zone(x,y){return zones.find(z=>x>=z[1]&&x<z[1]+z[3]&&y>=z[2]&&y<z[2]+z[4])}
+function e(s,x,y,sz){X.font=(sz||24)+'px serif';X.textAlign='center';X.textBaseline='middle';X.fillText(s,x*T+T/2,y*T+T/2+1)}
+function lbl(o){X.fillStyle=o.c;X.font='bold 11px sans-serif';X.textAlign='center';X.fillText(o.n,o.x*T+T/2,o.y*T-3)}
+function draw(){for(let y=0;y<H;y++)for(let x=0;x<W;x++){const z=zone(x,y);X.fillStyle=wall(x,y)?'#3b5b7a':(z?z[5]:'#ddd');X.fillRect(x*T,y*T,T,T);if(!wall(x,y)&&(x+y)%2){X.fillStyle='rgba(0,0,0,.04)';X.fillRect(x*T,y*T,T,T)}}
+  spots.forEach(s=>{e(s[2],s[0],s[1]);if(checked.has(s)&&!(over&&s===cyc)){X.fillStyle='rgba(200,0,0,.7)';X.font='16px sans-serif';X.textAlign='center';X.fillText('✗',s[0]*T+T-6,s[1]*T+8)}});
+ X.font='bold 13px sans-serif';X.textAlign='left';X.textBaseline='middle';zones.forEach(z=>{const yy=(z[2]==0?6:14)*T+T/2,xx=(z[1]+1)*T+2,w=X.measureText(z[0]).width+10;X.fillStyle='rgba(255,255,255,.85)';X.fillRect(xx-4,yy-11,w,22);X.fillStyle='#203a55';X.fillText(z[0],xx,yy)});
+ if(over)e('🚲',cyc[0],cyc[1],28);
+ Bs.forEach(b=>{e(b.e,b.x,b.y,22);lbl(b)});e(Pihu.e,Pihu.x,Pihu.y,22);lbl(Pihu);
+ e('🧒',P.x,P.y,26);lbl({n:'केदार',c:'#1864ab',x:P.x,y:P.y});if(stun>0)e('💫',P.x,P.y-0.7,14);
+ const z=zone(P.x,P.y);document.getElementById('hud').textContent=`केदार: ${z?z[0]:'रास्ते में'} · देखी जगहें: ${checked.size}/${spots.length}`+(stun>0?' · ⏳ रुका हुआ':'')}
+addEventListener('keydown',ev=>{const k={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],w:[0,-1],s:[0,1],a:[-1,0],d:[1,0]}[ev.key];if(k){ev.preventDefault();move(...k)}});
+document.querySelectorAll('#pad button').forEach(b=>b.onclick=()=>move(...b.dataset.d.split(',').map(Number)));
+start();
+</script></body></html>

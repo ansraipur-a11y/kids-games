@@ -1,0 +1,55 @@
+<!DOCTYPE html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>कुबेर: आसमान का रक्षक</title>
+<style>
+body{margin:0;background:#0b1730;color:#e6f2ff;font-family:'Noto Sans Devanagari',sans-serif;text-align:center;user-select:none}
+h1{margin:6px 0 2px;font-size:22px}#hud{font-size:16px;margin:2px}#msg{min-height:22px;font-size:16px}
+canvas{border:3px solid #3b5b7a;border-radius:8px;max-width:96vw;touch-action:none;background:linear-gradient(#5aa9e6,#bfe3ff)}
+#pad button{font-size:24px;width:70px;height:54px;margin:4px;border-radius:12px;border:0;background:#3d7dbf;color:#fff}
+#pad button.f{background:#e8590c;width:110px}
+button.r{font-size:17px;padding:8px 16px;border-radius:8px;border:0;background:#4f8a3e;color:#fff;margin:4px}
+</style></head><body>
+<h1>कुबेर: आसमान का रक्षक ✈️</h1>
+<div id="hud"></div><div id="msg"></div>
+<canvas id="c" width="480" height="560"></canvas>
+<div id="pad"><button id="L">⬅️</button><button id="F" class="f">🔥 फ़ायर</button><button id="R">➡️</button></div>
+<button class="r" onclick="start()">नया खेल</button>
+<script>
+const C=document.getElementById('c'),X=C.getContext('2d'),Wd=C.width,Ht=C.height;
+let P,bul,ens,ebul,boom,clouds,score,lives,lvl,over,keys={},last=0,spawnT=0,fireT=0,hold={L:0,R:0,F:0};
+function start(){P={x:Wd/2,y:Ht-60};bul=[];ens=[];ebul=[];boom=[];score=0;lives=3;lvl=1;over=false;
+ clouds=Array.from({length:6},()=>({x:Math.random()*Wd,y:Math.random()*Ht,s:.4+Math.random()*.6}));
+ msg('कुबेर, दुश्मन जेट आ रहे हैं! उन्हें गिराओ! 💪');}
+function msg(s){document.getElementById('msg').textContent=s}
+function E(s,x,y,sz,rot){X.save();X.translate(x,y);if(rot)X.rotate(rot);X.font=sz+'px serif';X.textAlign='center';X.textBaseline='middle';X.fillText(s,0,0);X.restore()}
+function loop(t){const dt=Math.min(40,t-last)/16.7;last=t;
+ if(!over){
+  const sp=6*dt;if(keys.ArrowLeft||keys.a||hold.L)P.x-=sp;if(keys.ArrowRight||keys.d||hold.R)P.x+=sp;P.x=Math.max(22,Math.min(Wd-22,P.x));
+  fireT-=dt;if((keys[' ']||keys.ArrowUp||hold.F)&&fireT<=0){bul.push({x:P.x-10,y:P.y-24},{x:P.x+10,y:P.y-24});fireT=9}
+  spawnT-=dt;if(spawnT<=0){ens.push({x:30+Math.random()*(Wd-60),y:-30,vx:(Math.random()-.5)*1.5,vy:1.2+lvl*.35+Math.random(),hp:lvl>3&&Math.random()<.3?2:1,ft:60+Math.random()*90});spawnT=Math.max(18,70-lvl*7)}
+  bul.forEach(b=>b.y-=11*dt);bul=bul.filter(b=>b.y>-10);
+  ens.forEach(e=>{e.y+=e.vy*dt;e.x+=e.vx*dt;if(e.x<20||e.x>Wd-20)e.vx*=-1;e.ft-=dt;if(e.ft<=0&&e.y>0){ebul.push({x:e.x,y:e.y+18,vy:3.5+lvl*.3});e.ft=110-lvl*6+Math.random()*60}});
+  ebul.forEach(b=>b.y+=b.vy*dt);ebul=ebul.filter(b=>b.y<Ht+10);
+  ens.forEach(e=>bul.forEach(b=>{if(!b.dead&&Math.abs(b.x-e.x)<20&&Math.abs(b.y-e.y)<18){b.dead=1;e.hp--;if(e.hp<=0&&!e.dead){e.dead=1;score+=10;boom.push({x:e.x,y:e.y,t:20});
+   if(score%100==0){lvl++;msg(`शाबाश कुबेर! लेवल ${lvl}! 🎖️ और तेज़ दुश्मन आ रहे हैं!`)}}}}));
+  bul=bul.filter(b=>!b.dead);
+  const hit=o=>Math.abs(o.x-P.x)<22&&Math.abs(o.y-P.y)<22;
+  ens.forEach(e=>{if(!e.dead&&hit(e)){e.dead=1;boom.push({x:e.x,y:e.y,t:20});hurt()}if(!e.dead&&e.y>Ht+20){e.dead=1;score=Math.max(0,score-5);msg('एक दुश्मन बच निकला! ध्यान से, कुबेर! ⚠️')}});
+  ebul.forEach(b=>{if(!b.dead&&hit(b)){b.dead=1;hurt()}});ens=ens.filter(e=>!e.dead);ebul=ebul.filter(b=>!b.dead);
+ }
+ boom.forEach(b=>b.t-=dt);boom=boom.filter(b=>b.t>0);clouds.forEach(c=>{c.y+=c.s*dt*2;if(c.y>Ht+40){c.y=-40;c.x=Math.random()*Wd}});
+ X.clearRect(0,0,Wd,Ht);clouds.forEach(c=>E('☁️',c.x,c.y,50*c.s+20));
+ bul.forEach(b=>{X.fillStyle='#ffd43b';X.fillRect(b.x-2,b.y-8,4,12)});ebul.forEach(b=>{X.fillStyle='#e03131';X.beginPath();X.arc(b.x,b.y,4,0,7);X.fill()});
+ ens.forEach(e=>{E('🛩️',e.x,e.y,32,Math.PI*0.75);X.fillStyle='#c92a2a';X.font='bold 10px sans-serif';X.textAlign='center';X.fillText(e.hp>1?'दुश्मन ×2':'दुश्मन',e.x,e.y-20)});
+ boom.forEach(b=>E('💥',b.x,b.y,30+(20-b.t)));
+ if(!over||lives>0){E('✈️',P.x,P.y,40,-Math.PI/4);X.fillStyle='#1864ab';X.font='bold 12px sans-serif';X.textAlign='center';X.fillText('कुबेर',P.x,P.y+30)}
+ document.getElementById('hud').textContent=`स्कोर: ${score} · लेवल: ${lvl} · जान: ${'❤️'.repeat(Math.max(0,lives))}`;
+ if(over){X.fillStyle='rgba(0,0,0,.55)';X.fillRect(0,Ht/2-60,Wd,120);X.fillStyle='#fff';X.font='bold 26px sans-serif';X.textAlign='center';X.fillText('खेल खत्म!',Wd/2,Ht/2-15);X.font='18px sans-serif';X.fillText(`कुबेर ने ${score/10|0} दुश्मन जेट गिराए 🎖️`,Wd/2,Ht/2+20)}
+ requestAnimationFrame(loop)}
+function hurt(){lives--;boom.push({x:P.x,y:P.y,t:20});if(lives<=0){over=true;msg('कुबेर का जेट गिर गया... "नया खेल" दबाकर फिर से उड़ान भरो! ✈️')}else msg(`लग गया! कुबेर की ${lives} जान बची है। ❤️`)}
+addEventListener('keydown',e=>{keys[e.key]=1;if([' ','ArrowLeft','ArrowRight','ArrowUp'].includes(e.key))e.preventDefault()});addEventListener('keyup',e=>keys[e.key]=0);
+['L','R','F'].forEach(id=>{const b=document.getElementById(id);const on=e=>{e.preventDefault();hold[id]=1},off=e=>{e.preventDefault();hold[id]=0};
+ b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointerleave',off);b.addEventListener('pointercancel',off)});
+C.addEventListener('pointermove',e=>{if(e.buttons||e.pointerType=='touch'){const r=C.getBoundingClientRect();P.x=(e.clientX-r.left)*Wd/r.width;hold.F=1}});
+C.addEventListener('pointerup',()=>hold.F=0);
+start();requestAnimationFrame(loop);
+</script></body></html>

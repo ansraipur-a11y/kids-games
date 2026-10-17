@@ -1,0 +1,81 @@
+<!DOCTYPE html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>मैगी कहाँ छुपी है?</title>
+<style>
+body{margin:0;background:#2b1d14;color:#ffe9c4;font-family:'Noto Sans Devanagari',sans-serif;text-align:center}
+h1{margin:8px 0 2px;font-size:24px}#msg{min-height:26px;font-size:17px;margin:4px}
+canvas{background:#f3e1c0;border:4px solid #8a5a2b;border-radius:8px;max-width:96vw;touch-action:none}
+#pad button{font-size:26px;width:58px;height:50px;margin:3px;border-radius:10px;border:0;background:#c98a3e;color:#fff}
+#hud{font-size:16px}button.r{font-size:18px;padding:8px 16px;border-radius:8px;border:0;background:#4f8a3e;color:#fff;margin:6px}
+</style></head><body>
+<h1>मैगी कहाँ छुपी है? 🐶</h1>
+<div id="hud"></div><div id="msg">पीहू और कुहू, दौड़ो! जो पहले मैगी ढूँढेगी वही जीतेगी।</div>
+<canvas id="c" width="660" height="480"></canvas>
+<div style="display:flex;justify-content:center;gap:30px">
+<div id="pad" data-p="0"><b style="color:#ff8fb1">पीहू (तीर)</b><br><button data-d="0,-1">⬆️</button><br><button data-d="-1,0">⬅️</button><button data-d="0,1">⬇️</button><button data-d="1,0">➡️</button></div>
+<div id="pad" data-p="1"><b style="color:#8fd3ff">कुहू (W A S D)</b><br><button data-d="0,-1">⬆️</button><br><button data-d="-1,0">⬅️</button><button data-d="0,1">⬇️</button><button data-d="1,0">➡️</button></div></div>
+<button class="r" onclick="start()">नया खेल</button>
+<script>
+const C=document.getElementById('c'),X=C.getContext('2d'),T=30,W=22,H=16;
+// map: # wall, . floor
+const M=[
+"######################",
+"#......#......#......#",
+"#......#......#......#",
+"#......#......#......#",
+"#.............#......#",
+"#......#.............#",
+"###.#######.####.#####",
+"#......#.............#",
+"#......#......#......#",
+"#.............#......#",
+"#......#......#......#",
+"####.#####.#######.###",
+"#......#......#......#",
+"#.............#......#",
+"#......#.............#",
+"######################"];
+const rooms=[["रसोई",1,1],["बैठक",8,1],["पूजा घर",15,1],["बेडरूम",1,7],["आँगन",8,7],["बच्चों का कमरा",15,7],["स्टोर",1,12],["बालकनी",8,12],["बाथरूम",15,12]];
+const spots=[[2,2,"🛋️","सोफ़े के पीछे"],[5,3,"🧺","टोकरी में"],[10,2,"📺","टीवी के पीछे"],[13,4,"🪴","गमले के पास"],[17,2,"🪔","दीये के पास"],[20,4,"📚","किताबों के पीछे"],
+[2,8,"🛏️","पलंग के नीचे"],[5,10,"🗄️","अलमारी में"],[9,9,"🌳","पेड़ के पीछे"],[12,8,"🪣","बाल्टी के पीछे"],[16,9,"🧸","खिलौनों में"],[20,10,"🎒","बस्ते के पीछे"],
+[2,13,"📦","डिब्बे में"],[5,14,"🧹","झाड़ू के पीछे"],[10,13,"🌸","फूलों के पीछे"],[13,14,"🪑","कुर्सी के नीचे"],[17,13,"🛁","टब में"],[20,14,"🧴","शेल्फ़ के पास"]];
+let Pl,Bs,maggie,found,checked,over,timer,t0;
+const wall=(x,y)=>M[y][x]=='#';
+const spotAt=(x,y)=>spots.find(s=>s[0]==x&&s[1]==y);
+const free=(x,y)=>!wall(x,y)&&!spotAt(x,y);
+function rndFree(){let x,y;do{x=1+Math.random()*20|0;y=1+Math.random()*14|0}while(!free(x,y));return{x,y}}
+function start(){Pl=[{n:'पीहू',e:'👧',c:'#d6336c',x:9,y:3,stun:0,steps:0},{n:'कुहू',e:'👧🏻',c:'#1971c2',x:12,y:3,stun:0,steps:0}];
+ Bs=[{n:'मम्मी',e:'👩',c:'#704',t:[p=>`मम्मी: "${p}, पहले होमवर्क करो!" 📚`,p=>`मम्मी: "${p}, दूध पी के जाओ!" 🥛`,p=>`मम्मी: "${p}, यहाँ पोछा लगा है, रुको!" 🪣`]},
+{n:'कुबेर',e:'👦🍟',c:'#2b8a3e',t:[p=>`कुबेर: "${p}, चिप्स खाओगी? 🍟 आओ, बैठो ना!" ${p} ललचा गई!`,p=>`कुबेर ने चिप्स का पैकेट खोला... कुर्र-कुर्र! 🍟 ${p} रुक गई!`,p=>`कुबेर: "${p}, मैगी छोड़ो, मसाला चिप्स लो!" 😋`]},
+{n:'केदार',e:'🧒🥔',c:'#e8590c',t:[p=>`केदार: "${p}, एक चिप्स तुम्हें, एक मुझे!" 🥔 ${p} ललचा गई!`,p=>`केदार ने ${p} के सामने चिप्स लहराए... 😋 रुकना पड़ा!`,p=>`केदार: "${p}, पहले चिप्स खत्म करो, फिर जाना!" 🍟`]}];
+ Bs.forEach(b=>{let q;do{q=rndFree()}while(Math.abs(q.x-10)+Math.abs(q.y-3)<6);b.x=q.x;b.y=q.y});maggie=spots[Math.random()*spots.length|0];found=null;checked=new Set();over=false;t0=Date.now();
+ msg("पीहू और कुहू, दौड़ो! जो पहले मैगी ढूँढेगी वही जीतेगी। 🐶");clearInterval(timer);timer=setInterval(tick,500);draw()}
+function msg(s){document.getElementById('msg').textContent=s}
+function near(a,b){return Math.abs(a.x-b.x)+Math.abs(a.y-b.y)<=1}
+function tick(){if(over)return;
+ Bs.forEach(Mo=>{const tgt=Pl.reduce((a,p)=>(Math.abs(p.x-Mo.x)+Math.abs(p.y-Mo.y))<(Math.abs(a.x-Mo.x)+Math.abs(a.y-Mo.y))?p:a);
+ const ds=[[1,0],[-1,0],[0,1],[0,-1]].filter(d=>free(Mo.x+d[0],Mo.y+d[1]));
+ if(ds.length){let d=ds[Math.random()*ds.length|0];if(Math.random()<(Mo.n=='मम्मी'?.55:.4)){ds.sort((a,b)=>(Math.abs(Mo.x+a[0]-tgt.x)+Math.abs(Mo.y+a[1]-tgt.y))-(Math.abs(Mo.x+b[0]-tgt.x)+Math.abs(Mo.y+b[1]-tgt.y)));d=ds[0]}Mo.x+=d[0];Mo.y+=d[1]}});
+ Pl.forEach(p=>{if(p.stun>0)p.stun--});
+ Pl.forEach(p=>{const Mo=Bs.find(b=>near(p,b));if(Mo&&p.stun==0){p.stun=5;msg(Mo.t[Math.random()*3|0](p.n))}});
+ draw()}
+function move(i,dx,dy){if(over)return;const p=Pl[i],o=Pl[1-i];if(p.stun>0)return;const nx=p.x+dx,ny=p.y+dy;const s=spotAt(nx,ny);
+ if(s){checked.add(s);if(s===maggie){found=p;over=true;clearInterval(timer);const sec=((Date.now()-t0)/1000)|0;msg(`🎉 ${p.n} जीत गई! मैगी ${s[3]} छुपी थी। (${sec} सेकंड)`)}else msg(`${p.n} ने ${s[3]} देखा... मैगी यहाँ नहीं है! 🐾`);draw();return}
+ if(wall(nx,ny)||(nx==o.x&&ny==o.y)||Bs.some(b=>b.x==nx&&b.y==ny))return;p.x=nx;p.y=ny;p.steps++;
+ if(near(p,o)&&o.stun==0&&Math.random()<.5){p.stun=o.stun=4;const t=['पीहू: "मैं पहले ढूँढूँगी!" कुहू: "नहीं, मैं!" 😤','कुहू ने पीहू की चोटी खींची! दोनों लड़ने लगीं 😭','"मैगी मेरी है!" "नहीं, मेरी!" 💢'];msg(t[Math.random()*3|0])}
+ else if(Math.abs(p.x-maggie[0])+Math.abs(p.y-maggie[1])<=3)msg(`${p.n} को पास से "भौं भौं" सुनाई दे रही है... 🐶`);draw()}
+function room(x,y){return rooms.find(r=>x>=r[1]&&x<r[1]+6&&y>=r[2]&&y<r[2]+5)}
+function e(s,x,y,sz){X.font=(sz||24)+'px serif';X.textAlign='center';X.textBaseline='middle';X.fillText(s,x*T+T/2,y*T+T/2+1)}
+function draw(){X.clearRect(0,0,C.width,C.height);
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){X.fillStyle=wall(x,y)?'#8a5a2b':((x+y)%2?'#f3e1c0':'#ecd6b0');X.fillRect(x*T,y*T,T,T)}
+ X.fillStyle='rgba(90,50,20,.55)';X.font='13px sans-serif';X.textAlign='left';rooms.forEach(r=>X.fillText(r[0],r[1]*T+4,r[2]*T+12));
+ spots.forEach(s=>{e(s[2],s[0],s[1]);if(checked.has(s)&&s!==maggie){X.fillStyle='rgba(200,0,0,.6)';X.font='16px sans-serif';X.fillText('✗',s[0]*T+T-6,s[1]*T+6)}});
+ if(found)e('🐶',maggie[0],maggie[1],28);
+ Pl.forEach(p=>{e(p.e,p.x,p.y,26);X.fillStyle=p.c;X.font='bold 11px sans-serif';X.textAlign='center';X.fillText(p.n,p.x*T+T/2,p.y*T-2);if(p.stun>0)e('💫',p.x,p.y-0.7,14)});
+ if(near(Pl[0],Pl[1])&&(Pl[0].stun>0))e('💢',(Pl[0].x+Pl[1].x)/2,(Pl[0].y+Pl[1].y)/2-0.6,16);
+ Bs.forEach(b=>{e(b.e,b.x,b.y,26);X.fillStyle=b.c;X.font='bold 11px sans-serif';X.textAlign='center';X.fillText(b.n,b.x*T+T/2,b.y*T-2)});
+ document.getElementById('hud').textContent=Pl.map(p=>`${p.n}: ${room(p.x,p.y)?room(p.x,p.y)[0]:'गलियारा'}${p.stun>0?' ⏳':''}`).join(' · ')+` · देखी जगहें: ${checked.size}/${spots.length}`}
+addEventListener('keydown',ev=>{const a={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[ev.key];const w={w:[0,-1],s:[0,1],a:[-1,0],d:[1,0]}[ev.key.toLowerCase()];
+ if(a){ev.preventDefault();move(0,...a)}else if(w)move(1,...w)});
+document.querySelectorAll('#pad').forEach(pd=>pd.querySelectorAll('button').forEach(b=>b.onclick=()=>move(+pd.dataset.p,...b.dataset.d.split(',').map(Number))));
+start();
+</script></body></html>

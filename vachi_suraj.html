@@ -1,0 +1,87 @@
+<!DOCTYPE html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>वाची चली सूरज मामा के पास</title>
+<style>
+body{margin:0;background:#1c2b4a;color:#fff;font-family:'Noto Sans Devanagari',sans-serif;text-align:center;user-select:none}
+h1{margin:6px 0 2px;font-size:21px}#hud{font-size:16px}#msg{min-height:22px;font-size:16px;color:#ffe066}
+canvas{border:3px solid #ffd43b;border-radius:10px;max-width:96vw;touch-action:none}
+#pad button{font-size:26px;width:110px;height:58px;margin:4px 10px;border-radius:14px;border:0;background:#f06595;color:#fff}
+button.r{font-size:17px;padding:8px 16px;border-radius:8px;border:0;background:#2b8a3e;color:#fff;margin:4px}
+</style></head><body>
+<h1>वाची चली सूरज मामा के पास 👧🌞</h1>
+<div id="hud"></div><div id="msg"></div>
+<canvas id="c" width="420" height="620"></canvas>
+<div id="pad"><button id="L">⬅️</button><button id="R">➡️</button></div>
+<button class="r" onclick="start()">नया खेल</button>
+<script>
+const C=document.getElementById('c'),X=C.getContext('2d'),W=C.width,H=C.height,GOAL=7000;
+let V,plats,items,fx,cam,score,lives,best,state,keys={},hold={L:0,R:0},last=0,lastSafe,msgT=0;
+function rnd(a,b){return a+Math.random()*(b-a)}
+function start(){
+ plats=[];items=[];fx=[];cam=0;score=0;lives=3;best=0;state='play';
+ plats.push({x:W/2-45,y:H-60,w:90,type:'cloud'});
+ let y=H-60;
+ while(y>-GOAL-200){
+  const h=-y/GOAL, gap=rnd(55,85+40*h); y-=gap;
+  const type=Math.random()<0.13?'spring':(h>0.3&&Math.random()<0.18?'move':'cloud');
+  const p={x:rnd(10,W-100),y,w:type=='spring'?70:rnd(70,95),type,vx:type=='move'?rnd(1,2)*(Math.random()<.5?-1:1):0};
+  plats.push(p);
+  if(Math.random()<0.45)items.push({x:p.x+p.w/2+rnd(-30,30),y:p.y-rnd(40,90),k:Math.random()<0.55?'🦋':['🌸','🌼','🌷','🌻'][Math.random()*4|0],ph:rnd(0,6)});
+ }
+ V={x:W/2,y:H-100,vx:0,vy:-11,face:1};lastSafe=plats[0];
+ msg('वाची, बादलों पर उछलो और सूरज मामा तक पहुँचो! 🌞');
+}
+function msg(s){document.getElementById('msg').textContent=s}
+function E(s,x,y,sz){X.font=sz+'px serif';X.textAlign='center';X.textBaseline='middle';X.fillText(s,x,y)}
+function T(s,x,y,c,sz){X.fillStyle=c;X.font='bold '+sz+'px sans-serif';X.textAlign='center';X.textBaseline='middle';X.fillText(s,x,y)}
+function cloud(x,y,w){X.fillStyle='#fff';X.beginPath();X.ellipse(x+w/2,y+6,w/2,13,0,0,7);X.ellipse(x+w*.3,y,w*.22,14,0,0,7);X.ellipse(x+w*.65,y-3,w*.25,16,0,0,7);X.fill()}
+function loop(t){const dt=Math.min(40,t-last)/16.7;last=t;
+ if(state=='play'){
+  const L=keys.ArrowLeft||keys.a||hold.L,R=keys.ArrowRight||keys.d||hold.R;
+  V.vx+=((R?1:0)-(L?1:0))*0.9*dt;V.vx*=Math.pow(0.86,dt);if(L)V.face=-1;if(R)V.face=1;
+  V.x+=V.vx*dt;if(V.x<-15)V.x=W+15;if(V.x>W+15)V.x=-15;
+  V.vy+=0.38*dt;V.y+=V.vy*dt;
+  plats.forEach(p=>{if(p.type=='move'){p.x+=p.vx*dt;if(p.x<5||p.x+p.w>W-5)p.vx*=-1}});
+  if(V.vy>0)for(const p of plats){
+   if(V.x>p.x-8&&V.x<p.x+p.w+8&&V.y+22>=p.y-6&&V.y+22<=p.y+14+V.vy*dt){
+    V.y=p.y-22;lastSafe=p;
+    if(p.type=='spring'){V.vy=-19;fx.push({x:V.x,y:p.y,s:'✨',t:20});say('बोइंग! स्प्रिंग से ऊँची छलाँग! 🌀')}
+    else V.vy=-11.5;
+    break}}
+  items.forEach(it=>{if(!it.got&&Math.hypot(it.x-V.x,it.y-V.y)<30){it.got=1;score+=it.k=='🦋'?15:10;fx.push({x:it.x,y:it.y,s:'💖',t:25});
+   if(it.k=='🦋')say(['तितली पकड़ ली! 🦋','शाबाश वाची! 🦋','कितनी सुंदर तितली! 🦋'][Math.random()*3|0]);else say('फूल मिल गया! '+it.k)}});
+  const target=V.y-H*0.45;if(target<cam)cam=target;
+  best=Math.max(best,Math.min(GOAL,-(V.y-(H-100))));
+  if(V.y-cam>H+40){lives--;
+   if(lives<=0){state='lose';msg('ओह! वाची थक गई... "नया खेल" दबाकर फिर कोशिश करो! 💪')}
+   else{V.x=lastSafe.x+lastSafe.w/2;V.y=lastSafe.y-30;V.vy=-11;V.vx=0;cam=V.y-H*0.6;msg(`गिर गई! पर कोई बात नहीं, ${lives} मौके बचे हैं ❤️`)}}
+  if(-V.y>GOAL+H-180){state='win';msg('🎉 वाची सूरज मामा के पास पहुँच गई! सूरज मामा ने खुश होकर आशीर्वाद दिया! 🌞')}
+  msgT-=dt;
+ }
+ fx.forEach(f=>{f.t-=dt;f.y-=1*dt});fx=fx.filter(f=>f.t>0);
+ const h=Math.max(0,Math.min(1,-cam/GOAL));
+ const g=X.createLinearGradient(0,0,0,H);
+ g.addColorStop(0,`rgb(${120+130*h|0},${190+30*h|0},${255-120*h|0})`);g.addColorStop(1,`rgb(${190+60*h|0},${225+10*h|0},255)`);
+ X.fillStyle=g;X.fillRect(0,0,W,H);
+ X.save();X.translate(0,-cam);
+ const sy=-GOAL-H+130;
+ if(sy-cam>-200){X.fillStyle='rgba(255,220,80,.25)';X.beginPath();X.arc(W/2,sy,120+6*Math.sin(t/300),0,7);X.fill();E('🌞',W/2,sy,130);T('सूरज मामा',W/2,sy+85,'#e8590c',20)}
+ plats.forEach(p=>{if(p.y-cam<-40||p.y-cam>H+40)return;
+  if(p.type=='spring'){X.fillStyle='#74c0fc';X.fillRect(p.x,p.y,p.w,10);X.strokeStyle='#e64980';X.lineWidth=3;X.beginPath();for(let i=0;i<=6;i++){X.lineTo(p.x+p.w/2+(i%2?9:-9),p.y-i*3)}X.stroke();E('🌀',p.x+p.w/2,p.y-24,20)}
+  else{cloud(p.x,p.y,p.w);if(p.type=='move'){X.fillStyle='#a5d8ff';X.fillRect(p.x+p.w/2-10,p.y+18,20,3)}}});
+ items.forEach(it=>{if(it.got||it.y-cam<-30||it.y-cam>H+30)return;const bob=Math.sin(t/300+it.ph)*5;E(it.k,it.x+(it.k=='🦋'?Math.sin(t/500+it.ph)*12:0),it.y+bob,28)});
+ fx.forEach(f=>E(f.s,f.x,f.y,24));
+ if(state!='lose'){X.save();X.translate(V.x,V.y);X.scale(V.face,1);E('👧',0,0,40);X.restore();X.font='bold 13px sans-serif';X.lineWidth=3;X.strokeStyle='#fff';X.strokeText('वाची',V.x,V.y-34);T('वाची',V.x,V.y-34,'#c2255c',13)}
+ X.restore();
+ X.fillStyle='rgba(0,0,0,.25)';X.fillRect(W-22,10,10,H-20);X.fillStyle='#ffd43b';const bh=(H-20)*best/GOAL;X.fillRect(W-22,H-10-bh,10,bh);E('🌞',W-17,10,18);
+ document.getElementById('hud').textContent=`अंक: ${score} · मौके: ${'❤️'.repeat(Math.max(0,lives))} · सूरज मामा तक: ${Math.round(best/GOAL*100)}%`;
+ if(state=='win'){X.fillStyle='rgba(255,255,255,.75)';X.fillRect(20,H/2-80,W-40,170);E('👧🌞💖',W/2,H/2-35,50);T('वाची जीत गई! 🎉',W/2,H/2+25,'#d6336c',28);T(`तितली और फूल के अंक: ${score}`,W/2,H/2+62,'#333',17)}
+ if(state=='lose'){X.fillStyle='rgba(0,0,0,.55)';X.fillRect(0,H/2-50,W,100);T('फिर से कोशिश करो, वाची! 💪',W/2,H/2,'#fff',22)}
+ requestAnimationFrame(loop)}
+function say(s){if(msgT<=0||true){msg(s);msgT=40}}
+addEventListener('keydown',e=>{keys[e.key]=1;if(['ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault()});addEventListener('keyup',e=>keys[e.key]=0);
+['L','R'].forEach(id=>{const b=document.getElementById(id),on=e=>{e.preventDefault();hold[id]=1},off=e=>{e.preventDefault();hold[id]=0};
+ b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointerleave',off);b.addEventListener('pointercancel',off)});
+C.addEventListener('pointerdown',e=>{const r=C.getBoundingClientRect();const left=(e.clientX-r.left)<r.width/2;hold.L=left?1:0;hold.R=left?0:1});
+C.addEventListener('pointerup',()=>{hold.L=hold.R=0});C.addEventListener('pointerleave',()=>{hold.L=hold.R=0});
+start();requestAnimationFrame(loop);
+</script></body></html>
